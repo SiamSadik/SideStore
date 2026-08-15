@@ -8,6 +8,7 @@
 
 import Foundation
 import CoreData
+import Minimuxer
 @preconcurrency import AltSign
 
 final class RefreshAppOperation: BasePipelineOperation<InstallAppOperationContext, InstalledApp>, @unchecked Sendable {
@@ -26,7 +27,14 @@ final class RefreshAppOperation: BasePipelineOperation<InstallAppOperationContex
         for p in profiles {
             do {
                 try await installProvisioningProfiles(p.value.data)
+            } catch let error as MinimuxerError {
+                // Surface the actual minimuxer failure (e.g. .profileInstall, .noVPN, .notReachable)
+                // instead of masking it as a generic MinimuxerWrapperError.profileInstall, so the
+                // true cause is visible in the error log / Health Check.
+                debugLog("[RefreshAppOperation] installProvisioningProfiles failed with minimuxer error: \(error)")
+                throw error
             } catch {
+                debugLog("[RefreshAppOperation] installProvisioningProfiles failed: \(error)")
                 throw MinimuxerWrapperError.profileInstall
             }
         }
