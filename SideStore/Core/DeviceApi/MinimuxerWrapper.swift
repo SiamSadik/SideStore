@@ -263,6 +263,8 @@ extension MinimuxerError {
             return String(format: NSLocalizedString("Unable to connect to the device via %@ VPN. Please make sure LocalDevVPN is enabled and running! Reason: %@", comment: ""), "LocalDev", reason)
         case .invalidPairing(let proto, let reason):
             return String(format: NSLocalizedString("Invalid pairing file (%@ protocol): %@. Please use iloader to replace it.", comment: ""), proto.description, reason)
+        case .pairingFile(let proto, let reason):
+            return String(format: NSLocalizedString("Unsupported pairing file (%@ protocol): %@. Please use iloader to replace it.", comment: ""), proto.description, reason)
         case .createDebug:
             return createService(name: "debug")
         case .lookupApps:
