@@ -488,7 +488,7 @@ struct HealthCheckView: View {
             
             // Section 5: Diagnostics (tunnel-bypass test build)
             Section(header: Text("Diagnostics (test build)")) {
-                Button {
+                SwiftUI.Button {
                     Task {
                         await Minimuxer.shared.runDiagnostics()
                     }
