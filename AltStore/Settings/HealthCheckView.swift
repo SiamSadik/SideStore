@@ -104,9 +104,24 @@ final class HealthCheckViewModel: ObservableObject {
         
         let pingSuccess = (tunnelPeerIp != nil) ? Minimuxer.shared.testDeviceConnection(ifaddr: tunnelPeerIp!) : false
         
-        let ddi = (try? await Minimuxer.shared.isDDIMounted()) ?? false
-        let pairingVerified = (try? await Minimuxer.shared.fetchUDID() != nil) ?? false
+        // Resolve the readiness gate FIRST: it fails fast (non-blocking TCP
+        // probe) when the tunnel peer is unreachable, instead of blocking each
+        // FFI service call below for the full 60s idevice timeout against a
+        // dead peer — which froze the "Checking status..." card indefinitely.
         let readyResult = await Minimuxer.shared.isReady
+        
+        // Only hit the slow device-service calls (DDI mount check, UDID fetch)
+        // when the peer actually answers the TCP probe; on a dead peer they
+        // hang for the global FFI timeout and add nothing but delay.
+        let ddi: Bool
+        let pairingVerified: Bool
+        if pingSuccess {
+            ddi = (try? await Minimuxer.shared.isDDIMounted()) ?? false
+            pairingVerified = (try? await Minimuxer.shared.fetchUDID() != nil) ?? false
+        } else {
+            ddi = false
+            pairingVerified = false
+        }
         let scanned = self.scanLocalInterfaces()
         
         return HealthCheckMetrics(
