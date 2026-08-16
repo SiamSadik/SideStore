@@ -485,6 +485,24 @@ struct HealthCheckView: View {
                     }
                 }
             }
+            
+            // Section 5: Diagnostics (tunnel-bypass test build)
+            Section(header: Text("Diagnostics (test build)")) {
+                Button {
+                    Task {
+                        await Minimuxer.shared.runDiagnostics()
+                    }
+                } label: {
+                    HStack {
+                        Text("Run Device Diagnostics")
+                        Spacer()
+                        Image(systemName: "stethoscope")
+                    }
+                }
+                Text("Runs the TCP probe matrix (real errno), Local Network permission check, loopback lockdown test, and a full DDI mount attempt via 127.0.0.1. Results print to the console log (Error Log → >_).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .navigationTitle("Health Check")
         .navigationBarTitleDisplayMode(.inline)
