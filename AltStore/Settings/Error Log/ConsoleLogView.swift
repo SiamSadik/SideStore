@@ -6,6 +6,7 @@
 //  Copyright © 2024 SideStore. All rights reserved.
 //
 import SwiftUI
+import UIKit
 
 @MainActor
 class ConsoleLogViewModel: ObservableObject {
@@ -18,6 +19,11 @@ class ConsoleLogViewModel: ObservableObject {
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var logURL: URL
     private var lastReadOffset: UInt64 = 0
+    
+    /// The log file currently displayed, exposed for export/share.
+    var activeLogURL: URL {
+        return logURL
+    }
     
     init(logURL: URL) {
         self.logURL = logURL
@@ -122,6 +128,7 @@ public struct ConsoleLogView: View {
     @State private var scrollToIndex: Int?
     @State private var showTimestamp: Bool = false
     @State private var fontSize: CGFloat = 12
+    @State private var showShareSheet: Bool = false
     
     private let resultHighlightColor = Color.orange
     private let resultHighlightOpacity = 0.5
@@ -174,6 +181,14 @@ public struct ConsoleLogView: View {
                     Image(systemName: showTimestamp ? "clock.fill" : "clock")
                         .foregroundColor(.white)
                         .font(.system(size: 19))
+                }
+                
+                SwiftUI.Button(action: {
+                    showShareSheet = true
+                }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.white)
+                        .imageScale(.large)
                 }
                 
                 SwiftUI.Button(action: {
@@ -283,6 +298,9 @@ public struct ConsoleLogView: View {
         }
         .background(Color.black)  // Set background color to mimic QL's dark theme
         .edgesIgnoringSafeArea(.all)
+        .sheet(isPresented: $showShareSheet) {
+            ConsoleLogShareSheet(activityItems: [viewModel.activeLogURL])
+        }
     }
 
     private static let timestampRegex = try? NSRegularExpression(
@@ -306,4 +324,27 @@ extension Array {
     subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
+}
+
+// Presents the system share sheet for exporting the console log.
+struct ConsoleLogShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: nil
+        )
+        // iPad requires a popover anchor.
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = controller.view
+            popover.sourceRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        }
+        return controller
+    }
+
+    func updateUIViewController(
+        _ uiViewController: UIActivityViewController,
+        context: Context
+    ) {}
 }
