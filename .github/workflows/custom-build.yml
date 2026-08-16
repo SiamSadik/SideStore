@@ -7,7 +7,7 @@ name: Custom SideStore IPA Build
 on:
   workflow_dispatch:
   push:
-    branches: [fix-ios27]
+    branches: [fix-ios27, stable-export]
 
 concurrency:
   group: custom-build-${{ github.ref }}
