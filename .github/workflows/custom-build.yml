@@ -30,6 +30,22 @@ jobs:
         with:
           xcode-version: "26.4"
 
+      # The em_proxy submodule's fetch-prebuilt.sh pulls assets from
+      # SideStore/em_proxy's *latest* release. The stable-era build (pinned
+      # submodule 816dc733, pre-rework API) needs the old-format assets, but
+      # the latest release (v0.9.2) ships a new-format xcframework, so the
+      # wget 404s and clobbers em_proxy.swift with an empty file. Restore the
+      # correct assets from the old-format "build" release and make
+      # fetch-prebuilt.sh skip its download.
+      - name: Restore stable em_proxy prebuilt assets
+        run: |
+          cd Dependencies/em_proxy
+          touch .skip-prebuilt-fetch-em_proxy
+          curl -fsSL -o em_proxy.h "https://github.com/SideStore/em_proxy/releases/download/build/em_proxy.h"
+          curl -fsSL -o em_proxy.swift "https://github.com/SideStore/em_proxy/releases/download/build/em_proxy.swift"
+          curl -fsSL -o libem_proxy-ios.a "https://github.com/SideStore/em_proxy/releases/download/build/libem_proxy-ios.a"
+          curl -fsSL -o libem_proxy-sim.a "https://github.com/SideStore/em_proxy/releases/download/build/libem_proxy-sim.a"
+
       - name: Build
         run: |
           set -o pipefail
