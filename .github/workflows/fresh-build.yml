@@ -1,0 +1,35 @@
+name: Fresh Dev Build (2026-09-03 upstream develop)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fresh-dev-0903]
+
+concurrency:
+  group: fresh-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install tooling
+        run: brew install ldid xcbeautify
+
+      - name: Build
+        run: |
+          set -o pipefail
+          NSUnbufferedIO=YES make -B build 2>&1 | xcbeautify
+          make fakesign
+          make ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: SideStore-fresh.ipa
+          path: SideStore.ipa
