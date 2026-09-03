@@ -191,9 +191,8 @@ public class DatabaseManager
                 {
                 case .failure(let error): finish(error)
                 case .success:
-                    self.persistentContainer.loadPersistentStores { (description, error) in
-                        guard error == nil else { return finish(error!) }
-                        
+                    func prepareLoadedDatabase()
+                    {
                         self.prepareDatabase() { (result) in
                             switch result
                             {
@@ -201,6 +200,19 @@ public class DatabaseManager
                             case .success: finish(nil)
                             }
                         }
+                    }
+
+                    // prepareDatabase() can fail after the persistent store has loaded. In that
+                    // case, retry only the preparation step instead of adding the same store again.
+                    // (Without this, every Retry re-adds the already-loaded store and fails with
+                    // NSCocoaErrorDomain 134081 "Can't add the same store twice", bricking launch.)
+                    guard self.persistentContainer.persistentStoreCoordinator.persistentStores.isEmpty else {
+                        return prepareLoadedDatabase()
+                    }
+
+                    self.persistentContainer.loadPersistentStores { (description, error) in
+                        guard error == nil else { return finish(error!) }
+                        prepareLoadedDatabase()
                     }
                 }
             }
@@ -314,8 +326,25 @@ public class DatabaseManager
             {
                 guard let localAppBundle = ALTApplication(fileURL: Bundle.Info.activeBundleURL) else { return }
                 
+                // @livecontainer: when hosted by LiveContainer, Bundle.main is remapped to
+                // SideStoreApp.framework, which carries no embedded.mobileprovision of its own —
+                // the signing profile lives in the host app bundle (LiveContainer.app). Resolve
+                // the profile from the host bundle in that case, mirroring the LC-aware behavior
+                // of previous builds (see Bundle.realMainBundle), so the launch-time profile
+                // checks pass when SideStore is embedded in LiveContainer.
+                let profileBundle: ALTApplication
+                if Bundle.main.bundleURL.lastPathComponent == "SideStoreApp.framework",
+                   let hostApp = ALTApplication(fileURL: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
+                {
+                    profileBundle = hostApp
+                }
+                else
+                {
+                    profileBundle = localAppBundle
+                }
+                
                 #if !targetEnvironment(simulator)
-                guard localAppBundle.provisioningProfile != nil else {
+                guard profileBundle.provisioningProfile != nil else {
                     completionHandler(.failure(ALTError(.invalidApp)))
                     return
                 }
@@ -361,7 +390,7 @@ public class DatabaseManager
                     // For backwards compatibility reasons, we cannot use localApp's buildVersion as storeBuildVersion,
                     // or else the latest update will _always_ be considered new because we don't use buildVersions in our source (yet).
                     installedApp = try InstalledApp(
-                        resignedAppBundle: localAppBundle,
+                        resignedAppBundle: profileBundle,
                         originalBundleIdentifier: StoreApp.altstoreAppID,
                         certificateSerialNumber: serialNumber,
                         storeBuildVersion: nil,
