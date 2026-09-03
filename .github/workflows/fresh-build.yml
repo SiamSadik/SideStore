@@ -28,8 +28,16 @@ jobs:
 
       - name: Build
         run: |
-          set -o pipefail
-          NSUnbufferedIO=YES make -B build 2>&1 | tee build-raw.log | xcbeautify || { echo "===== RAW TAIL ====="; tail -60 build-raw.log; exit 1; }
+          build_one() { NSUnbufferedIO=YES make -B build > build-raw.log 2>&1; }
+          set +e
+          build_one; RC=$?
+          if [ $RC -ne 0 ]; then
+            echo "attempt 1 failed ($RC) - clearing SPM cache and retrying once"
+            rm -rf ~/Library/Caches/org.swift.swiftpm
+            build_one; RC=$?
+          fi
+          set -e
+          if [ $RC -ne 0 ]; then echo "===== RAW TAIL ====="; tail -80 build-raw.log; exit $RC; fi
           make fakesign
           make ipa
 
